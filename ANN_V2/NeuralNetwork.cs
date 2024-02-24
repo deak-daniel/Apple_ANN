@@ -15,13 +15,13 @@ namespace ANN_V2
     }
     public class NeuralNetwork
     {
-        public readonly static double LearningRate = 0.0005;
+        public readonly static double LearningRate = 0.00005;
         public Neuron[] Input_Layer { get; set; }
         public Neuron[] Hidden_Layer { get; set; }
         public Neuron[] Output_Layer { get; set; }
         public double Actual { get; set; }
         public double error { get; set; }
-        public NeuralNetwork(int input_layer_number, int hidden_layer_number = 2, int output_layer_number = 1)
+        public NeuralNetwork(int input_layer_number, int hidden_layer_number = 24, int output_layer_number = 1)
         {
             Input_Layer = new Neuron[input_layer_number];
             Hidden_Layer = new Neuron[hidden_layer_number];

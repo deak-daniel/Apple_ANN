@@ -36,18 +36,6 @@
                 sum = 0;
             }
 
-
-            //for (int i = 0; i < train.Count; i++)
-            //{
-            //    List<string> helper = train[i].Split(",").ToList();
-            //    network.Initialize(helper);
-
-            //    network.Feedforward();
-
-            //    Console.WriteLine( $"Error: {network.Error()}");
-
-            //    network.Backpropagate();
-            //}
             Console.WriteLine($"Network trained!");
 
 
