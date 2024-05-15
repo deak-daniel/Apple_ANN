@@ -27,7 +27,7 @@ namespace ANN_V2
         /// <summary>
         /// The Learning Rate parameter, which affects the network's speed of learning.
         /// </summary>
-        public readonly static double LearningRate = 0.005;
+        public readonly static double LearningRate = 0.0005;
         /// <summary>
         /// A boolean parameter, indicating whether the network is trained or not.
         /// </summary>
@@ -48,6 +48,11 @@ namespace ANN_V2
         /// The actual output or label.
         /// </summary>
         public double Actual { get; private set; }
+        public double[] Labels { get; private set; }
+        /// <summary>
+        /// The neuron that is chosen by the network.
+        /// </summary>
+        public Neuron Chosen { get; private set; }
         /// <summary>
         /// The network's predicted output.
         /// </summary>
@@ -69,7 +74,7 @@ namespace ANN_V2
         /// <param name="input_layer_number">The number of input parmeters.</param>
         /// <param name="hidden_layer_number">The number of hidden layer neurons (12 by default)</param>
         /// <param name="output_layer_number">The number of neurons in the output layer (1 by default)</param>
-        public NeuralNetwork(int input_layer_number, int hidden_layer_number = 12, int output_layer_number = 1)
+        public NeuralNetwork(int input_layer_number, int hidden_layer_number = 12, int output_layer_number = 3)
         {
             Input_Layer = new Neuron[input_layer_number];
             Hidden_Layer = new Neuron[hidden_layer_number];
@@ -83,7 +88,7 @@ namespace ANN_V2
             }
             for (int i = 0; i < Output_Layer.Length; i++)
             {
-                Output_Layer[i] = new Neuron(Hidden_Layer.Length, NeuronType.Output);
+                Output_Layer[i] = new Neuron(Hidden_Layer.Length, NeuronType.Output, i);
             }
         }
         #endregion // Constructor
@@ -95,18 +100,22 @@ namespace ANN_V2
         /// <param name="inputValues">The list of input values.</param>
         public void Initialize(List<string> inputValues)
         {
+            double[] values = inputValues.Select(x => double.Parse(x, CultureInfo.InvariantCulture)).ToArray();
             if (Input_Layer[0] is not null)
             {
-                for (int i = 0; i < inputValues.Count; i++)
+                for (int i = 0; i < inputValues.Count - 1; i++)
                 {
-                    Input_Layer[i].Activation = (double.Parse(inputValues[i], CultureInfo.InvariantCulture));
+                    Input_Layer[i].Activation = Normalize(values, double.Parse(inputValues[i], CultureInfo.InvariantCulture));
+                    //Input_Layer[i].Activation = double.Parse(inputValues[i], CultureInfo.InvariantCulture);
                 }
             }
             else
             {
-                for (int i = 0; i < inputValues.Count; i++)
+                
+                for (int i = 0; i < inputValues.Count - 1; i++)
                 {
-                    Input_Layer[i] = new Neuron(double.Parse(inputValues[i], CultureInfo.InvariantCulture));
+                    Input_Layer[i] = new Neuron(Normalize(values, double.Parse(inputValues[i], CultureInfo.InvariantCulture)));
+                    //Input_Layer[i] = new Neuron(double.Parse(inputValues[i], CultureInfo.InvariantCulture));
                 }
 
                 for (int i = 0; i < Hidden_Layer.Length; i++)
@@ -125,8 +134,34 @@ namespace ANN_V2
                     }
                 }
             }
-            
+
             Actual = double.Parse(inputValues.Last(), CultureInfo.InvariantCulture);
+
+            switch (Actual)
+            {
+                case 1:
+                    Labels = new double[] { 1, 0, 0 };
+                    break;
+                case 2:
+                    Labels = new double[] { 0, 1, 0 };
+                    break;
+                case 3:
+                    Labels = new double[] { 0, 0, 1 };
+                    break;
+                //case 4:
+                //    Labels = new double[] { 0, 0, 0, 1, 0, 0 };
+                //    break;
+                //case 5:
+                //    Labels = new double[] { 0, 0, 0, 0, 1, 0 };
+                //    break;
+                //case 6:
+                //    Labels = new double[] { 0, 0, 0, 0, 0, 1 };
+                //    break;
+
+                default:
+                    Labels = new double[] { 0, 0, 0 };
+                    break;
+            }
             
         }
         /// <summary>
@@ -134,35 +169,51 @@ namespace ANN_V2
         /// </summary>
         public void Feedforward()
         {
-            for (int i = 0; i < Hidden_Layer.Length; i++)
+            foreach (Neuron item in Hidden_Layer)
             {
-                for (int j = 0; j < Hidden_Layer[i].Synapses.Length; j++)
+                foreach (Synapse synapse in item.Synapses)
                 {
-                    Hidden_Layer[i].Synapses[j].Initialize();
+                    synapse.Initialize();
+                }
+            }
+            
+            foreach (Neuron item in Hidden_Layer)
+            {
+                item.CalculateActivation();
+            }
+            
+            foreach(Neuron item in Output_Layer)
+            {
+                foreach (Synapse synapse in item.Synapses)
+                {
+                    synapse.Initialize();
                 }
             }
 
-            for (int i = 0; i < Hidden_Layer.Length; i++)
+            foreach (Neuron item in Output_Layer)
             {
-                Hidden_Layer[i].CalculateActivation();
-            }
-            
-
-            for (int i = 0; i < Output_Layer.Length; i++)
-            {
-                for (int j = 0; j < Output_Layer[i].Synapses.Length; j++)
-                {
-                    Output_Layer[i].Synapses[j].Initialize();
-                }
-            }
-            for (int i = 0; i < Output_Layer.Length; i++)
-            {
-                Output_Layer[i].CalculateActivation();
+                item.CalculateActivation();
             }
 
-            Predicted = Output_Layer.First().Activation;
-            
-            
+            Softmax();
+            Chosen = Output_Layer.OrderByDescending(x => x.Activation).First();
+            Predicted = (double)Chosen?.Activation;
+        }
+        public static double ReLU(double x)
+        {
+            return MathF.Max(0, (float)x);
+        }
+        public static double ReLuDerivative(double x)
+        {
+            return x > 0 ? 1 : 0;
+        }
+        public static double Tanh(double x)
+        {
+            return Math.Tanh(x);
+        }
+        public static double TanhDerivative(double x)
+        {
+            return 1 - (Math.Pow(Tanh(x), 2));
         }
         /// <summary>
         /// Defines the Sigmoid function.
@@ -188,49 +239,76 @@ namespace ANN_V2
         /// <returns>How wrong was the network.</returns>
         public double Error()
         {
-            error = 0.5 * Math.Pow((Predicted- Actual), 2);
-            this.error = error;
+            double localError = 0;
+            for (int i = 0; i < Output_Layer.Length; i++)
+            {
+                localError -= (Labels[i] * Math.Log(Output_Layer[i].Activation + 1e-9));
+            }
+        
+            this.error = localError;
             return error;
         }
         /// <summary>
         /// Derivative of the Error method. Used in training the network.
         /// </summary>
         /// <returns>Derivative of the error.</returns>
-        public double ErrorDerivative()
+        public double ErrorDerivative(double? predicted = null)
         {
-            double errDer = (Predicted - Actual);
+            double predictedValue = (double)(predicted is null ? Predicted : predicted);
+            double errDer = (predictedValue - Actual);
             this.errorDerivative = errDer;
             return errDer;
         }
         /// <summary>
-        /// This method is the main algorithm behind the Neural Network's learning. Basically, this is how the network learns.
+        /// Function that "Selects" the output which is the correct one according to the the network.
         /// </summary>
+        public void Softmax()
+        {
+            double max = Output_Layer.Max(x => x.Activation);
+            double[] exps = Output_Layer.Select(x => Math.Exp(x.Activation - max)).ToArray();
+            double sumExps = exps.Sum();
+
+            for (int i = 0; i < Output_Layer.Length; i++)
+            {
+                Output_Layer[i].Activation = exps[i] / sumExps;
+            }
+        }
         public void Backpropagate()
         {
-            for (int i = 0; i < Output_Layer.Length; i++)
+            for (int z = 0; z < Output_Layer.Length; z++)
             {
-                Output_Layer[i].CalculateDerivative(errorDerivative);
-            }
+                // Compute the derivative of the error with respect to the input of the softmax
+                double errorDerivative = Output_Layer[z].Activation - Labels[z];
 
-            for (int i = 0; i < Output_Layer.Length; i++)
-            {
-                for (int j = 0; j < Output_Layer[i].Synapses.Length; j++)
+                // Update the output layer neurons
+                Output_Layer[z].CalculateDerivative(errorDerivative);
+
+                for (int i = 0; i < Output_Layer.Length; i++)
                 {
-                    Output_Layer[i].Synapses[j].UpdateWeight(errorDerivative);
+                    for (int j = 0; j < Output_Layer[i].Synapses.Length; j++)
+                    {
+                        Output_Layer[i].Synapses[j].UpdateWeight(errorDerivative);
+                    }
+                }
+
+                // Update the hidden layer neurons
+                for (int i = 0; i < Hidden_Layer.Length; i++)
+                {
+                    for (int j = 0; j < Hidden_Layer[i].Synapses.Length; j++)
+                    {
+                        Hidden_Layer[i].Synapses[j].UpdateWeight(errorDerivative);
+                    }
                 }
             }
-
-            for (int i = 0; i < Hidden_Layer.Length; i++)
-            {
-                for (int j = 0; j < Hidden_Layer[i].Synapses.Length; j++)
-                {
-                    Hidden_Layer[i].Synapses[j].UpdateWeight(errorDerivative);
-                }
-            }
-
-
         }
         #endregion // Public methods
+
+        #region Private methods
+        private double Normalize(double[] values, double value)
+        {
+            return value / values.Sum();
+        }
+        #endregion
     }
 
     /// <summary>
@@ -288,12 +366,12 @@ namespace ANN_V2
         {
             if (In.neuronType == NeuronType.Hidden && Out.neuronType == NeuronType.Output)
             {
-                Weight = Weight - (NeuralNetwork.LearningRate * ( error * NeuralNetwork.SigmoidDerivative(In.Activation)) );
+                Weight = Weight - (NeuralNetwork.LearningRate * (error * NeuralNetwork.ReLuDerivative(In.Activation) ));
                 Out.Bias = Out.Bias - (NeuralNetwork.LearningRate * (error));
             }
             else if (In.neuronType == NeuronType.Input && Out.neuronType == NeuronType.Hidden)
             {
-                Weight = Weight - ((NeuralNetwork.LearningRate * (In.Activation * Out.Derivative)));
+                Weight = Weight - NeuralNetwork.LearningRate * In.Activation * Out.Derivative;
                 Out.Bias = Out.Bias - (NeuralNetwork.LearningRate * Out.Derivative);
             }
         }
@@ -339,6 +417,10 @@ namespace ANN_V2
         /// Bias.
         /// </summary>
         public double Bias { get; set; }
+        /// <summary>
+        /// The id of the neuron.
+        /// </summary>
+        public int Id { get; private set; }
         #endregion // Public properties
 
         #region Constructor
@@ -349,6 +431,19 @@ namespace ANN_V2
         /// <param name="type">The <see cref="NeuronType"/> of the neuron</param>
         public Neuron(int Input_value_length, NeuronType type)
         {
+            this.Bias = rnd.NextDouble();
+            neuronType = type;
+            Synapses = new Synapse[Input_value_length];
+        }
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="Input_value_length">The number of neurons connecting to this neuron's containing layer.</param>
+        /// <param name="type">The <see cref="NeuronType"/> of the neuron</param>
+        /// <param name="id">id</param>
+        public Neuron(int Input_value_length, NeuronType type, int id)
+        {
+            this.Id = id;
             this.Bias = rnd.NextDouble();
             neuronType = type;
             Synapses = new Synapse[Input_value_length];
@@ -371,7 +466,8 @@ namespace ANN_V2
         /// </summary>
         public void CalculateActivation()
         {
-            this.Activation = NeuralNetwork.Sigmoid(Synapses.Sum(x => x.WeightedSum) + Bias);
+            double act = Synapses.Sum(x => x.WeightedSum) + Bias;
+            this.Activation = NeuralNetwork.ReLU(act);
         }
         /// <summary>
         /// Calculates the derivative of the activation with respect to the error's derivative
@@ -383,7 +479,8 @@ namespace ANN_V2
             {
                 for (int i = 0; i < this.Synapses.Length; i++)
                 {
-                    this.Synapses[i].In.Derivative = NeuralNetwork.SigmoidDerivative(this.Activation) * this.Synapses[i].Weight * errorDelta;
+                    this.Synapses[i].In.Derivative = NeuralNetwork.ReLuDerivative(this.Activation) * this.Synapses[i].Weight * errorDelta;
+                    //this.Synapses[i].In.Derivative = this.Activation * this.Synapses[i].Weight * errorDelta;
                 }
             }
         }
