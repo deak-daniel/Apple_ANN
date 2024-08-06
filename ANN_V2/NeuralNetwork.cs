@@ -27,7 +27,7 @@ namespace ANN_V2
         /// <summary>
         /// The Learning Rate parameter, which affects the network's speed of learning.
         /// </summary>
-        public readonly static double LearningRate = 0.005;
+        public readonly static double LearningRate = 0.0005;
         /// <summary>
         /// A boolean parameter, indicating whether the network is trained or not.
         /// </summary>
