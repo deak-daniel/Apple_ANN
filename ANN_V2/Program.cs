@@ -11,7 +11,7 @@ namespace ANN_V2
         {
             // Separating dataset into Train and test subsets.
             #region Data preparation
-            List<string> input = File.ReadAllLines("milknew.csv").Skip(1).Select(x => x).ToList();
+            List<string> input = File.ReadAllLines("apple_quality.csv").Skip(1).Select(x => x).ToList();
             List<string> train = new List<string>();
             List<string> test = new List<string>();
             for (int i = 0; i < (int)(input.Count * 0.8); i++) 
@@ -24,7 +24,7 @@ namespace ANN_V2
             }
             #endregion
 
-            network = new NeuralNetwork(input[1].Split(',').Length - 1);
+            network = new NeuralNetwork(input[0].Split(',').Length);
             Train(train);
 
             Console.WriteLine($"Network trained!");
@@ -81,7 +81,7 @@ namespace ANN_V2
 
                 network.Feedforward();
 
-                Console.WriteLine($"Error: {network.error}, Actual: {network.Actual}, Predicted: {network.Chosen.Id}");
+                Console.WriteLine($"Error: {network.error}, Actual: {network.Actual}, Predicted: {network.Predicted}");
             }
         }
         /// <summary>
@@ -95,27 +95,29 @@ namespace ANN_V2
             double sum = 0;
             double sum2 = 0;
             int epochCounter = 0;
-            while (epochCounter < epochs /*&& (network.error > errorThreshold)*/)
+            while (epochCounter < epochs && (network.error > errorThreshold))
             {
+
                 for (int i = 0; i < train.Count; i++)
                 {
                     List<string> helper = train[i].Split(",").ToList();
-                    //List<string> assd = new List<string>();
-                    //for (int z = 1; z < helper.Count; z++)
-                    //{
-                    //    assd.Add(helper[z]);
-                    //}
+
                     network.Initialize(helper);
 
                     network.Feedforward();
-                    network.Error();
+                    network.error = network.Error();
+                    network.errorDerivative = network.ErrorDerivative();
                     sum += network.Error();
+                    sum2 += network.ErrorDerivative();
 
                     network.Backpropagate();
+
                 }
+                network.error = sum / train.Count;
+                network.errorDerivative = sum2 / train.Count;
+
                 train = ShuffleData(train);
-                Console.WriteLine($"Average Error: {sum / train.Count}");
-                //Console.WriteLine($"Actual: {network.Actual}, Predicted: {network.Chosen.Id}");
+                Console.WriteLine($"Average Error: {network.error}");
                 sum = 0;
                 sum2 = 0;
                 epochCounter++;
